@@ -13,6 +13,10 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.List;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -22,51 +26,69 @@ import static org.hamcrest.Matchers.equalTo;
 @Slf4j
 @SpringBootTest(classes = ElasticConfiguration.class)
 class ElasticSearchServiceTest {
-  @Autowired
-  private ElasticSearchService elasticSearchService;
-  @Autowired
-  private UserEsModel userEsModel;
+    @Autowired
+    private ElasticSearchService elasticSearchService;
+    @Autowired
+    private UserEsModel userEsModel;
 
 
-  @BeforeEach
-  public void setUp() {
-    clearES();
-  }
-
-  private void clearES() {
-    try {
-      List<String> indexes = elasticSearchService.listAllIndex();
-      for (EsIndex index : EsIndex.values()) {
-        for (String indexString : indexes) {
-          if (indexString.startsWith(index.getCode()) && elasticSearchService.isIndexExists(indexString)) {
-            elasticSearchService.deleteIndex(indexString);
-          }
-        }
-      }
-    } catch (Exception e) {
-      log.error("clearES error ", e);
+    @BeforeEach
+    public void setUp() {
+//    clearES();
     }
-  }
 
-  @Test
-  void listAllIndex() {
-    log.info(JsonUtils.toString(elasticSearchService.listAllIndex()));
-  }
+    private void clearES() {
+        try {
+            List<String> indexes = elasticSearchService.listAllIndex();
+            for (EsIndex index : EsIndex.values()) {
+                for (String indexString : indexes) {
+                    if (indexString.startsWith(index.getCode()) && elasticSearchService.isIndexExists(indexString)) {
+                        elasticSearchService.deleteIndex(indexString);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("clearES error ", e);
+        }
+    }
 
-  @Test
-  void createDocument() {
-    UserDocument user1 = UserDocument.builder(1).id(1L).name("张三").age(20).userName("jack").password("666").mobile("33232").build();
-    UserDocument user2 = UserDocument.builder(1).id(2L).name("张三").age(30).userName("tom").password("666").mobile("33232").build();
-    userEsModel.insert(user1);
-    userEsModel.insert(user2);
-    elasticSearchService.refreshEsIndexes();
-    EsSearchResult<UserDocument> result = userEsModel.findByCondition(UserEsCondition.builder(1).build());
-    //{"documents":[{"id":2,"userName":"tom","password":"666","mobile":"33232","name":"张三","age":30,"partition":1},{"id":1,"userName":"jack","password":"666","mobile":"33232","name":"张三","age":20,"partition":1}],"totalHits":2,"took":3}
-    log.info(JsonUtils.toString(result));
-    assertThat(2L, equalTo(result.getTotalHits()));
-    //{"documents":[{"id":2,"userName":"tom","password":"666","mobile":"33232","name":"张三","age":30,"partition":1}],"totalHits":1,"took":96}
-    result = userEsModel.findByCondition(UserEsCondition.builder(1).name("三").userName("tom").maxAge(30).build());
-    log.info(JsonUtils.toString(result));
-    assertThat(1L, equalTo(result.getTotalHits()));
-  }
+    @Test
+    void listAllIndex() {
+        log.info(JsonUtils.toString(elasticSearchService.listAllIndex()));
+    }
+
+    @Test
+    void createDocument() {
+        UserDocument user1 = UserDocument.builder(1).id(1L).name("张三").age(20).userName("jack").password("666").mobile("33232").build();
+        UserDocument user2 = UserDocument.builder(1).id(2L).name("张三").age(30).userName("tom").password("666").mobile("33232").build();
+        userEsModel.insert(user1);
+        userEsModel.insert(user2);
+        elasticSearchService.refreshEsIndexes();
+        EsSearchResult<UserDocument> result = userEsModel.findByCondition(UserEsCondition.builder(1).build());
+        //{"documents":[{"id":2,"userName":"tom","password":"666","mobile":"33232","name":"张三","age":30,"partition":1},{"id":1,"userName":"jack","password":"666","mobile":"33232","name":"张三","age":20,"partition":1}],"totalHits":2,"took":3}
+        log.info(JsonUtils.toString(result));
+        assertThat(2L, equalTo(result.getTotalHits()));
+        //{"documents":[{"id":2,"userName":"tom","password":"666","mobile":"33232","name":"张三","age":30,"partition":1}],"totalHits":1,"took":96}
+        result = userEsModel.findByCondition(UserEsCondition.builder(1).name("三").userName("tom").maxAge(30).build());
+        log.info(JsonUtils.toString(result));
+        assertThat(1L, equalTo(result.getTotalHits()));
+    }
+
+
+    @Test
+    public void test() {
+        try {
+            Connection connection = DriverManager.getConnection("jdbc:es://http://es.test.example.log:80");//将ES-IP换位ES服务器的IP
+            Statement statement = connection.createStatement();
+            ResultSet results = statement.executeQuery(
+                    "select * from user_1  LIMIT 5");
+            while (results.next()) {
+                System.out.println(results.getString("request"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+    }
+
 }
